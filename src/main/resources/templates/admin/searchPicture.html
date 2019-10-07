@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head th:include="include/admin/adminHeader::html('图片管理')"></head>
+
+<body class="hold-transition skin-blue layout-boxed ">
+
+<script>
+    $(function () {
+        // var pid = getUrlParms("pid");
+        var data4Vue = {
+            uri: 'pictures',
+            // beans: [{id:1,name:'1'},{id:2,name:'2'}],
+            beans: [],
+            bean: {id: 0, name: ''},
+            bean4update: {id: 0, name: ''},
+            pagination: {},
+            postitle: '',
+            postext: '',
+            picname: '',
+            d1: '2019-01-01',
+            d2: '',
+            w1: '',
+            w2: '',
+            h1: '',
+            h2: '',
+            s1: '',
+            s2: ''
+        };
+
+        //ViewModel
+        var vue = new Vue({
+            el: '#workingArea',
+            data: data4Vue,
+            mounted: function () { //mounted　表示这个 Vue 对象加载成功了
+                this.initDate4add();
+                this.d1 = '2019-01-01';
+            },
+            methods: {
+                initDate4add: function () {
+                    $('#date4add1').datepicker({
+                        "format": 'yyyy-mm-dd',
+                        "todayHighlight": false,
+                        "language": "zh-CN",
+                        autoclose: true,
+                        todayBtn: 'linked'
+                    }).on("changeDate", function (e) {
+                        var month = (e.date.getMonth() + 1);
+                        if (month < 10)
+                            month = '0' + month;
+                        var day = (e.date.getDate());
+                        if (day < 10)
+                            day = '0' + day;
+                        vue.d1 = e.date.getFullYear() + "-" + month + "-" + day;
+                    });
+
+                    $('#date4add2').datepicker({
+                        "format": 'yyyy-mm-dd',
+                        "todayHighlight": true,
+                        "language": "zh-CN",
+                        autoclose: true,
+                        todayBtn: 'linked'
+                    }).on("changeDate", function (e) {
+                        var month = (e.date.getMonth() + 1);
+                        if (month < 10)
+                            month = '0' + month;
+                        var day = (e.date.getDate());
+                        if (day < 10)
+                            day = '0' + day;
+                        vue.d2 = e.date.getFullYear() + "-" + month + "-" + day;
+                    });
+                    $('#date4add2').datepicker('update', new Date());
+                    this.d2 = $("#createDate4add2").val();
+                },
+                list: function () {
+                    var url = "posts/" + pid + "/" + this.uri;
+                    axios.get(url).then(function (response) {
+                        vue.pagination = response.data;
+                        this.beans = response.data;
+                    });
+                },
+                update: function () {
+                    var url = this.uri + "/" + this.bean4update.id;
+
+                    //axios.js 上传文件要用 formData 这种方式
+                    var formData = new FormData();
+                    formData.append("name", this.bean4update.name);
+                    // formData.append("pid", pid);
+                    axios.put(url, formData).then(function (response) {
+                        vue.search();
+                    });
+                    $("#modal4edit").modal('hide');
+                },
+                get: function (id) {
+                    var url = this.uri + "/" + id;
+                    axios.get(url).then(function (response) {
+                        vue.bean4update = response.data;
+                    });
+                    $("#modal4edit").modal('show');
+
+                    $("#modal4edit").on("shown.bs.modal", function () {
+                        $("#name4update").focus();
+                    });
+
+                },
+                search: function () {
+                    var url = this.uri + "/search";
+                    var formData = new FormData();
+                    formData.append("postitle", this.postitle);
+                    formData.append("postext", this.postext);
+                    formData.append("picname", this.picname);
+                    formData.append("d1", this.d1);
+                    formData.append("d2", this.d2);
+                    // formData.append("w1",this.w1);
+                    // formData.append("w2",this.w2);
+                    // formData.append("h1",this.h1);
+                    // formData.append("h2",this.h2);
+                    // formData.append("s1",this.s1);
+                    // formData.append("s2",this.s2);
+
+                    formData.append("w1", this.w1.length < 1 ? 0 : this.w1);
+                    formData.append("w2", this.w2.length < 1 ? 1000000 : this.w2);
+                    formData.append("h1", this.h1.length < 1 ? 0 : this.h1);
+                    formData.append("h2", this.h2.length < 1 ? 1000000 : this.h2);
+                    formData.append("s1", this.s1.length < 1 ? 0 : this.s1);
+                    formData.append("s2", this.s2.length < 1 ? 100000000 : this.s2);
+                    axios.post(url, formData).then(function (response) {
+                        // alert(vue.beans.length);
+                        vue.pagination = response.data;
+                        vue.beans = response.data;
+                        if (vue.beans.length < 1) {
+                            alert("没有搜索到图片");
+                        }
+                    });
+                },
+                deleteBean: function (id) {
+                    var url = this.uri + "/" + id;
+                    axios.delete(url).then(function (response) {
+                        vue.search();
+                    });
+                },
+                show: function (md5, name, w, h, s) {
+                    $("#originalPicture").attr("src", 'uploaded/picture/' + md5 + '.jpg');
+                    $("#pic_info").text("名称：" + name + "；宽：" + w + "；高：" + h + "；文件体积：" + s);
+                }
+            }
+        });
+
+        var fixHelperModified = function (e, tr) {
+                var $originals = tr.children();
+                var $helper = tr.clone();
+                $helper.children().each(function (index) {
+                    $(this).width($originals.eq(index).width())
+                });
+                return $helper;
+            },
+            updateIndex = function (e, ui) {
+                $('td.index', ui.item.parent()).each(function (i) {
+                    $(this).attr("index", i + 1);
+                });
+
+                var indexJsons = new Array();
+                $("td.index").each(function () {
+                    var id = $(this).attr("theid");
+                    var index = $(this).attr("index");
+                    var indexJson = {id: '', index: ''};
+                    indexJson.id = id;
+                    indexJson.index = index;
+                    indexJsons.push(indexJson);
+                });
+                $.ajax({
+                    type: "post",
+                    url: "pictures/adjustIndex",
+                    datatype: "json",
+                    data: {indexJsons: JSON.stringify(indexJsons)},
+                    success: function (data) {
+                        console.log(data);
+                    }
+                });
+            };
+        if (!isMobile) {
+            $("#sort tbody").sortable({
+                helper: fixHelperModified,
+                stop: updateIndex
+            }).disableSelection();
+        }
+
+    });
+
+</script>
+
+
+<div class="wrapper" id="workingArea">
+    <div th:replace="include/admin/adminNavigator::html"></div>
+    <div th:replace="include/admin/adminSidebar::html"></div>
+
+    <div class="content-wrapper">
+        <section class="content-header">
+        </section>
+
+        <section class="content">
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="input-group">
+                        <input type="text" class="form-control" v-model="postitle" placeholder="记录名"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="postext" placeholder="记录描述"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="picname" placeholder="图片名称"
+                               aria-describedby="basic-addon1">
+                        图片最早上传日期
+                        <div class="input-group date" id="date4add1">
+                            <input id="createDate4add1" type="text" class="form-control" v-model.trim="d1"><span
+                                class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                        图片最晚上传日期
+                        <div class="input-group date" id="date4add2">
+                            <input id="createDate4add2" type="text" class="form-control" v-model.trim="d2"><span
+                                class="input-group-addon"><i class="glyphicon glyphicon-th"></i></span>
+                        </div>
+                        <input type="text" class="form-control" v-model="w1" placeholder="图片最小宽度"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="w2" placeholder="图片最大宽度"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="h1" placeholder="图片最小高度"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="h2" placeholder="图片最大高度"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="s1" placeholder="图片文件最小"
+                               aria-describedby="basic-addon1">
+                        <input type="text" class="form-control" v-model="s2" placeholder="图片文件最大"
+                               aria-describedby="basic-addon1">
+                        <button type="button" @click="search" class="btn btn-primary">搜索</button>
+                    </div>
+                    <div class="box" v-show="beans.length!=0">
+                        <div class="box-header">
+                            <h3 class="box-title">图片清单 </h3>
+                            <small class="sortable">（搜索到 {{beans.length}} 张图片）</small>
+
+                        </div>
+                        <!-- /.box-header -->
+                        <div class="box-body table-responsive no-padding">
+                            <table id="sort" class="table table-hover">
+                                <tr>
+                                    <th style="width:50px">图片</th>
+                                    <th style="width:50px">名称</th>
+                                    <th style="width:50px">类别</th>
+                                    <th class="thinth">隐藏</th>
+                                </tr>
+
+                                <tbody>
+                                <template v-for="bean in beans ">
+                                    <tr rowspan="2">
+                                        <td :theid="bean.id" class="index" index="">
+                                            <a href="#nowhere"
+                                               @click="show(bean.md5,bean.name,bean.width,bean.height,bean.size)"
+                                               data-toggle="modal" data-target="#modal-info">
+                                                <img style="width:50px;height:50px"
+                                                     :src="'uploaded/smallPicture/'+bean.md5+'.jpg'">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a :title="bean.name" href="#nowhere" @click="get(bean.id)">
+                                                {{bean.name | shortStringFilter(12) | stringEmpty}}
+                                            </a>
+                                        </td>
+
+                                        <td>
+                                            <a :title="bean.post.title"
+                                               :href="'admin_picture_list?pid=' + bean.post.id ">
+                                                {{bean.post.title | shortStringFilter(12) | stringEmpty}}
+                                            </a>
+                                        </td>
+
+                                        <td>
+                                            <a href="#nowhere" @click="deleteBean(bean.id)"><span
+                                                    class="glyphicon glyphicon-trash"></span></a>
+                                        </td>
+                                    </tr>
+                                </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal modal-info fade" id="modal-info">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span></button>
+                                <h4 class="modal-title" id="pic_info">图片</h4>
+                            </div>
+                            <div class="modal-body">
+
+                                <img style="width:100%" id="originalPicture" src=""/>
+
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline pull-left" data-dismiss="modal">关闭</button>
+                            </div>
+                        </div>
+                        <!-- /.modal-content -->
+                    </div>
+                    <!-- /.modal-dialog -->
+                </div>
+
+                <div class="modal modal-default fade" id="modal4edit">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">×</span></button>
+                                <h4 class="modal-title">修改图片名称</h4>
+                            </div>
+
+                            <div class="box box-info" style="margin:10px auto">
+                                <div class="box-header with-border">
+                                    <h3 class="box-title">修改图片名称</h3>
+                                </div>
+
+                                <div class="box-body">
+                                    <div class="form-group">
+                                        <label for="exampleInputEmail1">图片名称</label>
+                                        <input type="text" class="form-control" id="name4update" @keyup.enter="update"
+                                               v-model.trim="bean4update.name" placeholder="图片名称">
+                                        <input type="hidden" v-model.trim="bean4update.id">
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary pull-left" data-dismiss="modal">关闭</button>
+                                <button type="button" @click="update" class="btn btn-primary">提交</button>
+                            </div>
+                        </div>
+                        <!-- /.modal-content -->
+                    </div>
+                    <!-- /.modal-dialog -->
+                </div>
+
+            </div>
+        </section>
+    </div>
+    <div th:replace="include/admin/adminFooter::html"></div>
+</div>
+
+</body>
+</html>
